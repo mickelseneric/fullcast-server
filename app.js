@@ -1,7 +1,7 @@
 const express = require('express');
 const bodyParser = require('body-parser');
 const cors = require('cors');
-import { treeData } from './data';
+const service = require('./service');
 
 const app = express();
 const port = 3001; // You can choose any available port
@@ -10,33 +10,55 @@ const port = 3001; // You can choose any available port
 app.use(cors());
 app.use(bodyParser.json());
 
-// In-memory data structure to hold tree nodes (as an example)
-let treeData = {
-    nodes: treeData,
-};
-
 // Routes
-app.get('/tree/nodes', (req, res) => {
+app.get('/tree/nodes', async (req, res) => {
+    const treeData = await service.getNodes();
     res.json(treeData);
 });
 
-app.post('/tree/nodes', (req, res) => {
-    const newNode = req.body;
-    // Add logic to insert newNode into treeData
-    res.status(201).send(newNode);
+app.post('/tree/nodes', async (req, res) => {
+    const body = req.body;
+    if (!body.node) {
+        return res.status(400).send('Missing node data');
+    }
+
+    try {
+        const node = await service.addNode(body.parentId, body.node);
+        res.status(201).send(node);
+    } catch (e) {
+        res.send(e.message);
+    }
 });
 
-app.delete('/tree/nodes/:id', (req, res) => {
+app.delete('/tree/nodes/:id', async (req, res) => {
     const nodeId = req.params.id;
-    // Add logic to remove node by nodeId from treeData
-    res.status(200).send({ id: nodeId });
+
+    if (!nodeId)
+        return res.status(200).send({ id: nodeId });
+
+    try {
+        await service.removeNode(nodeId);
+        res.status(200).send({ id: nodeId });
+    } catch (e) {
+        res.send(e.message);
+    }
 });
 
-app.put('/tree/nodes/:id', (req, res) => {
+app.put('/tree/nodes/:id', async (req, res) => {
     const nodeId = req.params.id;
     const newNodeData = req.body;
-    // Add logic to update node by nodeId with newNodeData in treeData
-    res.status(200).send(newNodeData);
+
+    if (!nodeId)
+        return res.status(400).send({ message: 'Missing node id' });
+    if (!newNodeData)
+        return res.status(400).send({ message: 'Missing node data' });
+
+    try {
+        const updatedNode = await service.updateNode(nodeId, newNodeData);
+        res.status(200).send(updatedNode);
+    } catch (e) {
+        res.send(e.message);
+    }
 });
 
 // Start server
